@@ -8,6 +8,7 @@ import cv2; cv2.setNumThreads(0); cv2.ocl.setUseOpenCL(False)
 from PIL import Image
 from typing import List, Tuple, Union
 from dataclasses import dataclass, field
+from rich.progress import track
 
 from ..config.crop_config import CropConfig
 from .crop import (
@@ -226,7 +227,7 @@ class Cropper(object):
         """Tracking based landmarks/alignment and cropping"""
         trajectory = Trajectory()
         direction = kwargs.get("direction", "large-small")
-        for idx, frame_rgb in enumerate(driving_rgb_lst):
+        for idx, frame_rgb in track(enumerate(driving_rgb_lst), description='Cropping video...', total=len(driving_rgb_lst)):
             if idx == 0 or trajectory.start == -1:
                 src_face = self.face_analysis_wrapper.get(
                     contiguous(frame_rgb[..., ::-1]),
@@ -287,7 +288,7 @@ class Cropper(object):
         trajectory = Trajectory()
         direction = kwargs.get("direction", "large-small")
 
-        for idx, frame_rgb_crop in enumerate(driving_rgb_crop_lst):
+        for idx, frame_rgb_crop in track(enumerate(driving_rgb_crop_lst), description='Getting landmarks...', total=len(driving_rgb_crop_lst)):
             if idx == 0 or trajectory.start == -1:
                 src_face = self.face_analysis_wrapper.get(
                     contiguous(frame_rgb_crop[..., ::-1]),  # convert to BGR

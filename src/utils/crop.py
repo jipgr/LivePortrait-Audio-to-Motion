@@ -8,7 +8,7 @@ import numpy as np
 import os.path as osp
 from math import sin, cos, acos, degrees
 import cv2; cv2.setNumThreads(0); cv2.ocl.setUseOpenCL(False) # NOTE: enforce single thread
-from .rprint import rprint as print
+from .rprint import rprint as log
 
 DTYPE = np.float32
 CV2_INTERP = cv2.INTER_LINEAR
@@ -282,7 +282,7 @@ def parse_bbox_from_landmark(pts, **kwargs):
 def crop_image_by_bbox(img, bbox, lmk=None, dsize=512, angle=None, flag_rot=False, **kwargs):
     left, top, right, bot = bbox
     if int(right - left) != int(bot - top):
-        print(f'right-left {right-left} != bot-top {bot-top}')
+        log(f'right-left {right-left} != bot-top {bot-top}')
     size = right - left
 
     src_center = np.array([(left + right) / 2, (top + bot) / 2], dtype=DTYPE)

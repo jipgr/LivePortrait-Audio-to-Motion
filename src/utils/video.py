@@ -14,7 +14,7 @@ import cv2
 from rich.progress import track
 
 from .rprint import rlog as log
-from .rprint import rprint as print
+from .rprint import rprint as log
 from .helper import prefix
 
 
@@ -68,9 +68,9 @@ def merge_audio_video(video_fp, audio_fp, wfp):
     if osp.exists(video_fp) and osp.exists(audio_fp):
         cmd = f'ffmpeg -i "{video_fp}" -i "{audio_fp}" -c:v copy -c:a aac "{wfp}" -y'
         exec_cmd(cmd)
-        print(f'merge {video_fp} and {audio_fp} to {wfp}')
+        log(f'merge {video_fp} and {audio_fp} to {wfp}')
     else:
-        print(f'video_fp: {video_fp} or audio_fp: {audio_fp} not exists!')
+        log(f'video_fp: {video_fp} or audio_fp: {audio_fp} not exists!')
 
 
 def blend(img: np.ndarray, mask: np.ndarray, background_color=(255, 255, 255)):
