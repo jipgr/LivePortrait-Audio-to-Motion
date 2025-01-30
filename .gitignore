@@ -14,6 +14,8 @@ __pycache__/
 assets/examples/
 models/
 data/
+models/
+data/
 pretrained_weights/*.md
 pretrained_weights/docs
 pretrained_weights/liveportrait

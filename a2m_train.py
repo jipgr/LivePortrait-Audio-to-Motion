@@ -81,7 +81,7 @@ def validate(
     return loss_total
 
 
-def main(cfg:Config):
+def main(cfg:TrainConfig):
     log(f"Load data from {cfg.data_root}")
     traindata = AudioToMotionDataset(cfg, 'train')
     trainloader = DataLoader(
@@ -104,14 +104,7 @@ def main(cfg:Config):
 
     model.to(cfg.device)
 
-    if cfg.load_ckpt is not None:
-        model.load_state_dict(torch.load(
-            cfg.load_ckpt,
-            map_location=cfg.device
-        ))
-
     loss_fn = torch.nn.L1Loss()
-
 
     optim = Adam(
         params=model.parameters(),

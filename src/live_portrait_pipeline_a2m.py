@@ -74,7 +74,7 @@ class LPPipeA2M(object):
             x_s=self.live_portrait_wrapper.transform_keypoint(x_s_info),
         )
 
-    def render(self, exp_delta:torch.Tensor):
+    def render(self, exp_delta:torch.Tensor, region:str|None=None):
         """
         Render for a given expression delta
 
@@ -88,6 +88,9 @@ class LPPipeA2M(object):
         :returns Tensor: Image, B,3,H,W
         """
 
+        if region is None:
+            region = self.cfg.animation_region
+
         # Add batch dim
         if exp_delta.ndim == 2:
             exp_delta = exp_delta.unsqueeze(0)
@@ -96,7 +99,7 @@ class LPPipeA2M(object):
 
         # Zero out vertices we dont want to focus on
         exp = torch.zeros(bs, *self.source.exp.shape[1:], dtype=self.source.exp.dtype, device=self.source.exp.device)
-        idxs = REGION_TO_VERTICES.get(self.cfg.animation_region, [])
+        idxs = REGION_TO_VERTICES.get(region, [])
 
         # Exp_delta is a full exp vector -> only take relevant indices
         if exp_delta.shape[1] == exp.shape[1]:

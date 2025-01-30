@@ -1,12 +1,9 @@
-import pickle
-from pathlib import Path
 import numpy as np
 import torch
 
-from .utils import load_wav, melspectrogram
+from ..utils import load_wav, melspectrogram
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 class Conv2d(nn.Module):
@@ -59,14 +56,18 @@ class AudioEncoder(nn.Module):
         return out
 
 
-class AudioDataset(object):
-    def __init__(self, wavpath, fps:int=25):
+class AudioDataset(Dataset):
+    def __init__(self, wavpath, fps):
+        super().__init__()
+
         self.fps = fps
 
         wav = load_wav(wavpath, 16000)
         self.orig_mel = melspectrogram(wav).T
+        print(f"Wav shape: {wav.shape}")
+        print(f"Mel shape: {self.orig_mel.shape}")
 
-        self.data_len = round((self.orig_mel.shape[0] - 16) / 80. * float(self.fps)) + 2
+        self.data_len = round((self.orig_mel.shape[0] - 16) / 80. * float(self.fps) + .5) + 2
 
     def crop_audio_window(self, spec, start_frame):
         start_idx = int(80. * (start_frame / float(self.fps)))
@@ -96,6 +97,7 @@ def encode_audio(
     fps:float,
     enc_ckpt:str,
 ) -> np.ndarray:
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model = AudioEncoder().to(device).eval()

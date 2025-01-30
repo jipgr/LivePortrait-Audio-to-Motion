@@ -3,6 +3,10 @@ import librosa
 from scipy import signal
 import numpy as np
 
+def extract_wav(path_vid, path_wav, sr=16000):
+    cmd = f'ffmpeg -y -loglevel error -i {path_vid} -f wav {path_wav}'
+    os.system(cmd)
+
 def load_wav(path, sr):
     return librosa.core.load(path, sr=sr)[0]
 
