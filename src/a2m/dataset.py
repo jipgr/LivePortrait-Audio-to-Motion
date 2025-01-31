@@ -7,109 +7,128 @@ from torch.utils.data import Dataset as _Dataset, DataLoader
 
 from .config import Config,REGION_TO_VERTICES
 from .utils import extract_wav
+from .audioencoders import encode_audio
 from src.utils.rprint import rprint as print,rlog as log
-
-TDataItem = tuple[torch.Tensor, torch.Tensor]
-TDataBatch = tuple[torch.Tensor, torch.Tensor]
-
 
 class AudioToMotionDataset(_Dataset):
     def __init__(
         self,
         cfg:Config,
         split:Literal['train','val','all'],
-        timestep_start:float=0,
-        timestep_end:float|None=None,
     ):
         super().__init__()
         self.cfg = cfg
-
         self.split = split
 
-        self.expr_ids = REGION_TO_VERTICES.get(cfg.region,[])
-        assert self.expr_ids != [], cfg.region
+        if not cfg.data_root.exists():
+            raise ValueError(f"Cannot find dataset at {cfg.data_root}")
+        log(f"Loading dataset from {cfg.data_root}")
 
-        with open(cfg.data_root / 'motion.pkl', 'rb') as f:
-            template = pickle.load(f)
-
-            motion = np.concatenate([motion['exp'] for motion in template['motion']])
-            self.fps:float = template['output_fps']
-
-        log(f"Data FPS: {self.fps}")
-
-        self.motion = motion
-        self.m0 = motion[0]
-
-        self.aud_features = self._encode_audio()
-        assert self.aud_features.shape[-1] == cfg.dim_aud
+        self._load_motion()
+        self._load_audio()
 
         num_frames = self.aud_features.shape[0]
-        assert num_frames == self.motion.shape[0], [self.aud_features.shape, self.motion.shape]
-        log(f"Full dataset has {num_frames} frames")
 
-        if timestep_start != 0 or timestep_end is not None:
-            frame_start = max(0, round(timestep_start * self.fps))
-            frame_end = min(num_frames, round(timestep_end * self.fps) if timestep_end is not None else num_frames)
-            num_frames = frame_end - frame_start
-            log(f"Using data slice {timestep_start}s:{timestep_end}s -> frames {frame_start}:{frame_end}")
+        if self.motion is not None:
+            assert num_frames == self.motion.shape[0], [self.aud_features.shape, self.motion.shape]
+            log(f"Dataset motion features shape={self.motion.shape}")
+            self.has_gt = True
+
         else:
-            frame_start,frame_end = 0,num_frames
+            log(f"Dataset has no ground truth motion")
+            self.has_gt = False
 
-        # print("!WARNING! using a fixed max 600 frames")
-        # num_frames = 600
-        # self.motion = self.motion[:num_frames]
-        # self.aud_features = self.aud_features[:num_frames]
-
+        # Indices used in this dataset
+        indices = np.arange(num_frames)
         if self.split == 'train':
-            N = int(num_frames * .8)
+            N = int(num_frames * .2)
             assert 0 < N < num_frames - 1
-
-            self._indices = frame_start + np.arange(N)
+            self._indices = indices[N:]
 
         elif self.split == 'val':
-            N = int(num_frames * .8)
+            N = int(num_frames * .2)
             assert 0 < N < num_frames - 1
-
-            self._indices = frame_start + np.arange(N, num_frames)
+            self._indices = indices[:N]
 
         else:
-            self._indices = frame_start + np.arange(num_frames)
+            self._indices = indices
 
+        log(f"Full dataset has {num_frames} frames")
         log(f"Data split '{self.split}' has {len(self)} frames")
+        log(f"Data FPS: {self.fps}")
 
+    def _load_motion(self):
 
-    def _encode_audio(self) -> np.ndarray:
-        path_wav = self.cfg.data_root / 'aud.wav'
+        if ( self.cfg.data_root / 'motion.pkl' ).is_file():
 
-        if not path_wav.is_file():
-            extract_wav(self.cfg.data_root / (self.cfg.data_root.name + '.mp4'), path_wav)
+            self.expr_ids = REGION_TO_VERTICES.get(self.cfg.region,[])
+            assert self.expr_ids != [], self.cfg.region
 
-        save_to = self.cfg.data_root / f'aud_{self.cfg.audio_encoder}.npy'
+            with open(self.cfg.data_root / 'motion.pkl', 'rb') as f:
+                template = pickle.load(f)
 
-        if save_to.is_file():
-            log(f"Loading audio features from {save_to}")
-            features = np.load(save_to)
+                motion = np.concatenate([motion['exp'] for motion in template['motion']])
+                fps:float = template['output_fps']
+
+            self.fps = fps
+            self.motion = motion
+            self.m0 = motion[0]
 
         else:
-            if self.cfg.audio_encoder == 'synctalk':
-                from .audioencoders.synctalk import encode_audio
-                features = encode_audio(path_wav, fps=self.fps, enc_ckpt=self.cfg.audio_enc_ckpt_synctalk)
+            self.fps = 25.
+            self.motion = None
+            self.m0 = None
 
-            elif self.cfg.audio_encoder == 'hubert':
-                from .audioencoders.hubert import encode_audio
-                features = encode_audio(path_wav, fps=self.fps)
+    def _load_audio(self) -> np.ndarray:
+        # Either pointing to 'aud_[encoder].npy' or '*.[wav|mp4]'
+        if self.cfg.data_root.is_file():
+
+            if self.cfg.data_root.suffix == '.npy':
+                path_feats = self.cfg.data_root
+                path_aud = None
+
+            elif self.cfg.data_root.suffix in {'.wav', '.mp4'}:
+                path_feats = self.cfg.data_root.parent / f'aud_{self.cfg.audio_encoder}.npy'
+                path_aud = self.cfg.data_root
 
             else:
-                raise ValueError(f"Unkown audio encoder {self.cfg.audio_encoder}")
+                raise ValueError(f"Expected datafile to have ext .npy,.wav,.mp4")
 
-            assert features.shape == (self.motion.shape[0], self.cfg.dim_aud), \
-                "Audio features are incorrect, expected shape {}, got {}".format(
-                    (self.motion.shape[0], self.cfg.dim_aud), features.shape)
+        # Data root is dir
+        else:
+            path_feats = self.cfg.data_root / f'aud_{self.cfg.audio_encoder}.npy'
 
-            log(f"Saving features to {save_to}")
-            np.save(save_to, features)
+            # Features exist, no need to encode audio
+            if path_feats.is_file():
+                path_aud = None
 
-        return features
+            # Extract from aud.wav
+            elif ( self.cfg.data_root / 'aud.wav' ).is_file():
+                path_aud = self.cfg.data_root / 'aud.wav'
+
+            # Extract from .../[name]/[name].mp4
+            elif ( self.cfg.data_root / f'{self.cfg.data_root.name}.mp4' ).is_file():
+                path_aud = self.cfg.data_root / f'{self.cfg.data_root.name}.mp4'
+
+            # Now I also dont know what to do any more
+            else:
+                raise ValueError(f"Expected either 'aud.wav' or '*.mp4' in {self.cfg.data_root}")
+
+        encoder_kwargs = {
+            'fps': self.fps
+        }
+        if self.cfg.audio_encoder == 'synctalk':
+            encoder_kwargs['enc_ckpt'] = self.cfg.audio_enc_ckpt_synctalk
+
+        self.aud_features = encode_audio(
+            path_aud=path_aud,
+            path_feats=path_feats,
+            encoder=self.cfg.audio_encoder,
+            num_frames=None if self.motion is None else self.motion.shape[0],
+            encoder_kwargs=encoder_kwargs,
+        )
+
+        assert self.aud_features.shape[-1] == self.cfg.dim_aud
 
     def dataloader(self):
         return DataLoader(
@@ -128,7 +147,10 @@ class AudioToMotionDataset(_Dataset):
 
         aud = torch.from_numpy( self.aud_features[feat_idx] )
 
-        motion = self.motion[feat_idx] - self.m0
-        expr = torch.from_numpy( motion[self.expr_ids] )
+        if self.motion is not None:
+            motion = self.motion[feat_idx] - self.m0
+            expr = torch.from_numpy( motion[self.expr_ids] )
+        else:
+            expr = []
 
         return aud, expr

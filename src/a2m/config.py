@@ -24,15 +24,15 @@ class Config:
 
     region:Literal["exp", "pose", "lip", "eyes", "all"]='lip'
 
-    model_depth:int=16
-    model_width:int=128
+    model_depth:int=8
+    model_width:int=256
 
     batch_size:int=1
     num_worker:int=2
 
     lr:float=1e-4
     num_epoch:int=500
-    batch_size:int=128
+    batch_size:int=512
 
     ckpt_every:int=25
     eval_every:int=25

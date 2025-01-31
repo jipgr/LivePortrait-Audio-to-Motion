@@ -15,7 +15,7 @@ from src.utils.rprint import rprint as print,rlog as log
 from src.live_portrait_pipeline_a2m import LPPipeA2M
 
 def get_video_writer(wfp, **kwargs):
-    fps = kwargs.get('fps', 25)
+    fps = kwargs.get('fps', 30)
     video_format = kwargs.get('format', 'mp4')  # default is mp4 format
     codec = kwargs.get('codec', 'libx264')  # default is libx264 encoding
     quality = kwargs.get('quality')  # video quality
@@ -34,10 +34,12 @@ def main(cfg:Config):
         log("Specify a checkpoint")
         exit(1)
 
-    log(f"Loading data ....")
+    log(f"Load data from {cfg.data_root}")
     data = AudioToMotionDataset(
         cfg,
         split='all',
+        # timestep_start=120,
+        # timestep_end=180,
     )
     loader = DataLoader(
         dataset=data,
@@ -69,10 +71,7 @@ def main(cfg:Config):
     log("Setting up output ...")
     video_writer = None
     if save_to.suffix == '.mp4':
-        video_writer = get_video_writer(
-            str(save_to),
-            fps=data.fps
-        )
+        video_writer = get_video_writer(str(save_to))
         log(f"Rendering to video {save_to} ...")
     elif not save_to.exists() or save_to.is_dir():
         save_to.mkdir(parents=True, exist_ok=True)
@@ -83,18 +82,26 @@ def main(cfg:Config):
     # smooth_fac = .5
     # prev_out = None
 
+    exp_ids = data.expr_ids
+
     frame_i = 0
     for aud_feat, motion_gt in track(loader):
-
         aud_feat:torch.Tensor = aud_feat.to(cfg.device)
+        motion_gt:torch.Tensor = motion_gt.to(cfg.device)
 
-        if data.has_gt:
-            motion_gt:torch.Tensor = motion_gt.to(cfg.device)
+        # exp_gt = torch.zeros(motion_gt.shape[0], 21, 3, dtype=motion_gt.dtype, device=motion_gt.device)
+        # exp_gt = torch.zeros(motion_gt.shape[0], 21, 3, dtype=motion_gt.dtype, device=motion_gt.device)
+        # exp_pred = torch.zeros(motion_gt.shape[0], 21, 3, dtype=motion_gt.dtype, device=motion_gt.device)
+
 
         with torch.no_grad():
             motion_pred = model(aud_feat)
 
-        for item_i in range(motion_pred.shape[0]):
+        # exp_gt[:,exp_ids] = motion_gt
+        # exp_pred[:, exp_ids] = motion_pred
+
+        for item_i in range(motion_gt.shape[0]):
+            render_gt = lp_pipe.render(motion_gt[item_i])
 
             # if prev_out is not None:
             #     pred_smooth = prev_out * smooth_fac + motion_pred[item_i] * (1. - smooth_fac)
@@ -103,12 +110,9 @@ def main(cfg:Config):
             # prev_out = motion_pred[item_i]
             # render_pred = lp_pipe.render(pred_smooth)
 
+            render_pred = lp_pipe.render(motion_pred[item_i])
 
-            renders = lp_pipe.render(motion_pred[item_i])
-
-            if data.has_gt:
-                render_gt = lp_pipe.render(motion_gt[item_i])
-                renders = torch.cat((render_gt, renders), dim=-1)
+            renders = torch.cat((render_gt, render_pred), dim=-1)
 
             if video_writer is not None:
                 renders_np = np.uint8(255*renders.squeeze(0).permute(1,2,0).detach().cpu().numpy())

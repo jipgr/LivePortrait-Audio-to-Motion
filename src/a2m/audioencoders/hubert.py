@@ -14,12 +14,9 @@ want T*F frames
 
 def encode_audio(
     path_in:Path,
-    path_out:Path=None,
     fps:float=25.
 ):
-
-    if path_out is None:
-        path_out = path_in.with_name('aud_hubert.npy')
+    print(f"Encoding {path_in} using HuBERT model ...")
 
     torch.random.manual_seed(0)
     device = torch.device("cuda")
@@ -58,7 +55,7 @@ def encode_audio(
     features = features.permute(0,2,1) # batchsize, num_features, num_samples = 1, 1024, T*50
 
     # Resample this to the target FPS
-    features:torch.Tensor = F.interpolate(features, size=num_frames)
+    features:torch.Tensor = F.interpolate(features, size=num_frames, mode='linear')
 
     # Send out as np array
     features = features.squeeze(0).t().detach().cpu().numpy() # num_frames, num_features

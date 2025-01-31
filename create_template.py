@@ -10,12 +10,11 @@ import numpy as np
 from rich.progress import track
 
 import torch
+
 from src.live_portrait_wrapper import LivePortraitWrapper
 from src.config.argument_config import ArgumentConfig
 from src.config.inference_config import InferenceConfig
 from src.config.crop_config import CropConfig
-from src.utils.camera import get_rotation_matrix
-from src.utils.io import dump
 from src.utils.cropper import Cropper
 from src.utils.camera import get_rotation_matrix
 from src.utils.io import dump
@@ -92,9 +91,9 @@ def main(
     driver:Path,
 ):
 
-    print("Setting up args ...")
+    print("Setting up config ...")
     args = ArgumentConfig(
-        source=None,driving=None, # Prevent stupid mistakes
+        source=None,driving=None, # Prevent stupid mistakes with default arguments
     )
 
     assert driver.is_file(), f"Cannot find {driver}"

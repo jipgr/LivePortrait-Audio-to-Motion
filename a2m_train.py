@@ -81,7 +81,7 @@ def validate(
     return loss_total
 
 
-def main(cfg:TrainConfig):
+def main(cfg:Config):
     log(f"Load data from {cfg.data_root}")
     traindata = AudioToMotionDataset(cfg, 'train')
     trainloader = DataLoader(
@@ -113,7 +113,7 @@ def main(cfg:TrainConfig):
 
     schedule = lr_scheduler.MultiplicativeLR(
         optimizer=optim,
-        lr_lambda=lambda epoch: np.exp(np.log(.1)/cfg.num_epoch),
+        lr_lambda=lambda epoch: np.exp(np.log(.01)/cfg.num_epoch),
     )
 
     writer = SummaryWriter(cfg.model_dir)
