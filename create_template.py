@@ -99,7 +99,7 @@ def main(
     assert driver.is_file(), f"Cannot find {driver}"
     assert driver.suffix == '.mp4', f"Unsupported filetype {driver.suffix}"
 
-    save_to = driver.with_name('motion.pkl')
+    save_to = driver.with_suffix('.pkl')
     # if save_to.is_file():
     #     print(f"Output file {save_to} already exists, stopping ...")
     #     return

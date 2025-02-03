@@ -59,12 +59,13 @@ class AudioToMotionDataset(_Dataset):
 
     def _load_motion(self):
 
-        if ( self.cfg.data_root / 'motion.pkl' ).is_file():
+        path_pkl = self.cfg.data_root / f'{self.cfg.data_root.name}.pkl'
+        if path_pkl.is_file():
 
             self.expr_ids = REGION_TO_VERTICES.get(self.cfg.region,[])
             assert self.expr_ids != [], self.cfg.region
 
-            with open(self.cfg.data_root / 'motion.pkl', 'rb') as f:
+            with open(path_pkl, 'rb') as f:
                 template = pickle.load(f)
 
                 motion = np.concatenate([motion['exp'] for motion in template['motion']])
@@ -75,9 +76,9 @@ class AudioToMotionDataset(_Dataset):
             self.m0 = motion[0]
 
         else:
+            log(f"No motion file found at {path_pkl}, no ground truth available")
             self.fps = 25.
             self.motion = None
-            self.m0 = None
 
     def _load_audio(self) -> np.ndarray:
         # Either pointing to 'aud_[encoder].npy' or '*.[wav|mp4]'
@@ -128,7 +129,7 @@ class AudioToMotionDataset(_Dataset):
             encoder_kwargs=encoder_kwargs,
         )
 
-        assert self.aud_features.shape[-1] == self.cfg.dim_aud
+        assert self.aud_features.shape[-1] == self.cfg.dim_aud, (self.aud_features.shape, self.cfg.dim_aud)
 
     def dataloader(self):
         return DataLoader(

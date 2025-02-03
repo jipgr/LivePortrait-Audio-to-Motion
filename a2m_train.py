@@ -36,7 +36,6 @@ def train(
         y:torch.Tensor = y.to(device)
 
         yhat = model(x)
-
         loss = loss_fn(y, yhat)
 
         loss.backward()
@@ -98,6 +97,8 @@ def main(cfg:Config):
         shuffle=False,
         num_workers=cfg.num_worker
     )
+
+    assert traindata.has_gt and valdata.has_gt
 
     log("Setting up Audio-to-Motion model ...")
     model = AudioToMotionModel(cfg)

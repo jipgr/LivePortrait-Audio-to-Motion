@@ -43,8 +43,8 @@ class Cropper(object):
     def __init__(self, **kwargs) -> None:
         self.crop_cfg: CropConfig = kwargs.get("crop_cfg", None)
         self.image_type = kwargs.get("image_type", 'human_face')
-        device_id = kwargs.get("device_id", 0)
-        flag_force_cpu = kwargs.get("flag_force_cpu", False)
+        device_id = kwargs.get("device_id", self.crop_cfg.device_id)
+        flag_force_cpu = kwargs.get("flag_force_cpu", self.crop_cfg.flag_force_cpu)
         if flag_force_cpu:
             device = "cpu"
             face_analysis_wrapper_provider = ["CPUExecutionProvider"]

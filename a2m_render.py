@@ -1,18 +1,21 @@
 from pathlib import Path
 import imageio
+import rich
 from rich.progress import track
 import numpy as np
+import rich.progress
 import torch
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 import tyro
 
-from src.a2m.config import Config
+from src.a2m.config import InferenceConfig
 from src.a2m.dataset import AudioToMotionDataset,REGION_TO_VERTICES
 from src.a2m.model import AudioToMotionModel
 from src.utils.rprint import rprint as print,rlog as log
 from src.live_portrait_pipeline_a2m import LPPipeA2M
+
 
 def get_video_writer(wfp, **kwargs):
     fps = kwargs.get('fps', 25)
@@ -29,26 +32,26 @@ def get_video_writer(wfp, **kwargs):
     )
 
 
-def main(cfg:Config):
+
+def main(cfg:InferenceConfig):
     if cfg.load_ckpt is None:
-        log("Specify a checkpoint")
-        exit(1)
+        raise ValueError("Specify a checkpoint to load")
 
     log(f"Loading data ....")
     data = AudioToMotionDataset(
         cfg,
-        split='all',
+        split=cfg.render_split,
     )
     loader = DataLoader(
         dataset=data,
-        batch_size=1,
+        batch_size=int(data.fps),
         shuffle=False,
         num_workers=cfg.num_worker
     )
 
     log("Loading LivePortrait models ...")
     lp_pipe = LPPipeA2M(
-        source='assets/examples/source/theo.png',
+        source='data/obama/obama.png',
         animation_region=cfg.region,
         device_id=cfg.device.index,
     )
@@ -92,7 +95,7 @@ def main(cfg:Config):
             motion_gt:torch.Tensor = motion_gt.to(cfg.device)
 
         with torch.no_grad():
-            motion_pred = model(aud_feat)
+            motion_pred:torch.Tensor = model(aud_feat)
 
         for item_i in range(motion_pred.shape[0]):
 
@@ -118,12 +121,15 @@ def main(cfg:Config):
 
             frame_i += 1
 
+        if frame_i > data.fps*10:
+            break
+
     if video_writer is not None:
         video_writer.close()
 
     log("Done.")
 
 if __name__ == '__main__':
-    cfg = tyro.cli(Config)
+    cfg = tyro.cli(InferenceConfig)
     tyro.extras.set_accent_color("bright_cyan")
     main(cfg)

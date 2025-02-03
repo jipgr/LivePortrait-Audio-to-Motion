@@ -37,7 +37,11 @@ class LPPipeA2M(object):
     """LivePortrait PipeLine for Audio-to-Motion"""
 
     def __init__(self, **kwargs):
+        # Set some defaults
         kwargs['driving'] = None # prevent accidentally loading driving parameters
+        # kwargs['flag_do_torch_compile'] = kwargs.get('flag_do_torch_compile', True)
+
+        # set up LivePortrait config (NOTE! this is not from .config)
         self.cfg = ArgumentConfig(**kwargs)
 
         self.live_portrait_wrapper = LivePortraitWrapper(

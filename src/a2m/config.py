@@ -20,7 +20,7 @@ assert PROJECT_DIR.exists(), "I dont know on what host Im running on :("
 class Config:
     data_root:Path
 
-    audio_encoder:Literal['synctalk', 'hubert']
+    audio_encoder:Literal['synctalk', 'hubert', 'evp']
 
     region:Literal["exp", "pose", "lip", "eyes", "all"]='lip'
 
@@ -38,7 +38,6 @@ class Config:
     eval_every:int=25
     model_dir:Path= PROJECT_DIR / 'models' / datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    load_ckpt:Path|None=None
 
     device:torch.device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -50,4 +49,10 @@ class Config:
         self.dim_aud = {
             'synctalk': 512,
             'hubert': 1024,
+            'evp': 16,
         }[self.audio_encoder]
+
+@dataclass
+class InferenceConfig(Config):
+    render_split:Literal['train','val','all']='all'
+    load_ckpt:Path|None=None
